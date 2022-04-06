@@ -2,6 +2,7 @@ package lipgloss
 
 import (
 	"strings"
+	"sync"
 	"unicode"
 
 	"github.com/muesli/reflow/truncate"
@@ -71,9 +72,6 @@ const (
 	strikethroughSpacesKey
 )
 
-// A set of properties.
-type rules map[propKey]interface{}
-
 // NewStyle returns a new, empty Style.  While it's syntactic sugar for the
 // Style{} primitive, it's recommended to use this function for creating styles
 // incase the underlying implementation changes.
@@ -83,7 +81,7 @@ func NewStyle() Style {
 
 // Style contains a set of rules that comprise a style as a whole.
 type Style struct {
-	rules map[propKey]interface{}
+	rules *sync.Map
 	value string
 }
 
@@ -113,9 +111,12 @@ func (s Style) String() string {
 func (s Style) Copy() Style {
 	o := NewStyle()
 	o.init()
-	for k, v := range s.rules {
-		o.rules[k] = v
-	}
+
+	s.rules.Range(func(k, v interface{}) bool {
+		o.rules.Store(k, v)
+		return true
+	})
+
 	o.value = s.value
 	return o
 }
@@ -128,31 +129,36 @@ func (s Style) Copy() Style {
 func (s Style) Inherit(i Style) Style {
 	s.init()
 
-	for k, v := range i.rules {
+	i.rules.Range(func(k, v interface{}) bool {
 		switch k {
 		case marginTopKey, marginRightKey, marginBottomKey, marginLeftKey:
 			// Margins are not inherited
-			continue
+			return true
 		case paddingTopKey, paddingRightKey, paddingBottomKey, paddingLeftKey:
 			// Padding is not inherited
-			continue
+			return true
 		case backgroundKey:
 			// The margins also inherit the background color
 			if !s.isSet(marginBackgroundKey) && !i.isSet(marginBackgroundKey) {
-				s.rules[marginBackgroundKey] = v
+				s.rules.Store(marginBackgroundKey, v)
 			}
 		}
 
-		if _, exists := s.rules[k]; exists {
-			continue
+		if _, exists := s.rules.Load(k); exists {
+			return true
 		}
-		s.rules[k] = v
-	}
+
+		s.rules.Store(k, v)
+		return true
+	})
+
 	return s
 }
 
 // Render applies the defined style formatting to a given string.
 func (s Style) Render(str string) string {
+	s.init()
+
 	var (
 		te           termenv.Style
 		teSpace      termenv.Style
@@ -194,7 +200,12 @@ func (s Style) Render(str string) string {
 		useSpaceStyler = underlineSpaces || strikethroughSpaces
 	)
 
-	if len(s.rules) == 0 {
+	var l int
+	s.rules.Range(func(k, v interface{}) bool {
+		l++
+		return false
+	})
+	if l == 0 {
 		return str
 	}
 
