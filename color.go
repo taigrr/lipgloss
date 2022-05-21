@@ -17,7 +17,33 @@ var (
 	explicitBackgroundColor bool
 
 	colorProfileMtx sync.RWMutex
+	defaultDoeFoot  DoeFoot
 )
+
+func init() {
+	defaultDoeFoot.Profile = ColorProfile()
+}
+
+// NewDoeFoot returns a DoeFoot object with the Profile set
+// to the default detection of ColorProfile
+func NewDoeFoot() DoeFoot {
+	df := DoeFoot{Profile: ColorProfile()}
+	return df
+}
+
+// SetColorProfile allows you to change the ColorProfile for a specific DoeFoot
+func (d DoeFoot) SetColorProfile(profile termenv.Profile) DoeFoot {
+	d.Profile = profile
+	return d
+}
+
+type DoeFoot struct {
+	Profile termenv.Profile
+}
+
+func (df DoeFoot) color(c TerminalColor) termenv.Color {
+	return df.Profile.Color(c.value())
+}
 
 // ColorProfile returns the detected termenv color profile. It will perform the
 // actual check only once.

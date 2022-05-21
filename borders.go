@@ -327,6 +327,7 @@ func renderHorizontalEdge(left, middle, right string, width int) string {
 	return out.String()
 }
 
+//TODO add DoeFoot methods for styleBorder (only other ColorProfile() caller)
 // Apply foreground and background styling to a border.
 func styleBorder(border string, fg, bg TerminalColor) string {
 	if fg == noColor && bg == noColor {

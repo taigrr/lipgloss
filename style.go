@@ -152,7 +152,7 @@ func (s Style) Inherit(i Style) Style {
 }
 
 // Render applies the defined style formatting to a given string.
-func (s Style) Render(str string) string {
+func (s Style) RenderForDoeFoot(str string, df DoeFoot) string {
 	var (
 		te           termenv.Style
 		teSpace      termenv.Style
@@ -193,11 +193,12 @@ func (s Style) Render(str string) string {
 		// Do we need to style spaces separately?
 		useSpaceStyler = underlineSpaces || strikethroughSpaces
 	)
-
 	if len(s.rules) == 0 {
 		return str
 	}
-
+	te.Profile = df.Profile
+	teSpace.Profile = df.Profile
+	teWhitespace.Profile = df.Profile
 	// Enable support for ANSI on the legacy Windows cmd.exe console. This is a
 	// no-op on non-Windows systems and on Windows runs only once.
 	enableLegacyWindowsANSI()
@@ -225,7 +226,7 @@ func (s Style) Render(str string) string {
 	}
 
 	if fg != noColor {
-		fgc := fg.color()
+		fgc := df.color(fg)
 		te = te.Foreground(fgc)
 		if styleWhitespace {
 			teWhitespace = teWhitespace.Foreground(fgc)
@@ -234,9 +235,8 @@ func (s Style) Render(str string) string {
 			teSpace = teSpace.Foreground(fgc)
 		}
 	}
-
 	if bg != noColor {
-		bgc := bg.color()
+		bgc := df.color(bg)
 		te = te.Background(bgc)
 		if colorWhitespace {
 			teWhitespace = teWhitespace.Background(bgc)
@@ -371,6 +371,11 @@ func (s Style) Render(str string) string {
 	}
 
 	return str
+}
+
+// Render applies the defined style formatting to a given string.
+func (s Style) Render(str string) string {
+	return s.RenderForDoeFoot(str, defaultDoeFoot)
 }
 
 func (s Style) applyMargins(str string, inline bool) string {
